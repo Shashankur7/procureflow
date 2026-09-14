@@ -1,40 +1,131 @@
 # ProcureFlow
 
-ProcureFlow is a portfolio-grade B2B procurement and inventory platform. Employees request purchases, managers approve them, procurement creates purchase orders, and warehouse staff receive stock.
+A role-based procurement and inventory workflow platform built with Java and React.
 
-## Why this project
+ProcureFlow models a complete internal purchasing flow: an employee submits a purchase request, a manager approves or rejects it, procurement creates a purchase order, and warehouse staff receive stock into inventory.
 
-It demonstrates secure Java REST APIs, relational modelling, business workflows, database migrations, automated tests, containers, and production health checks—the skills expected in modern Java roles.
+## Overview
 
-## Architecture
+ProcureFlow is implemented as a modular monolith with a React + Vite frontend, Spring Boot REST API, PostgreSQL database, Flyway migrations, JWT authentication, role-based authorization, Docker-based local infrastructure, OpenAPI documentation, automated tests, and GitHub Actions CI.
 
-The first version is a **modular monolith**. Each business area owns its controller, service, repository and domain model. This allows us to deliver a coherent application before later extracting event-driven components where justified.
+The project is designed to demonstrate practical backend engineering and full-stack development skills rather than a collection of isolated CRUD screens.
 
-## Current foundation
+## Core workflow
 
-- Java 17 and Spring Boot 3
-- PostgreSQL with Flyway schema migrations
-- Spring Security boundary (health endpoints public; application endpoints protected)
-- BCrypt password hashing and JWT login
-- Docker Compose development database
-- Actuator health and information endpoints
+```text
+Employee -> Purchase Request -> Manager Approval -> Procurement -> Purchase Order -> Warehouse Receipt -> Inventory
+```
+
+## Role-based workspaces
+
+| Role | Main responsibilities |
+|---|---|
+| Employee | Create purchase requests and review request history |
+| Manager | Review pending requests and record approval decisions |
+| Procurement | Manage suppliers, purchase orders, and the product catalogue |
+| Warehouse | View inventory and record stock receipts |
+| Admin | Manage user roles |
+
+## Technical architecture
+
+```text
+React + Vite
+     |
+ HTTP / JSON + JWT
+     v
+Spring Boot REST API
+ Controllers -> Services -> Repositories
+     |
+ JPA / JDBC + Flyway
+     v
+PostgreSQL
+```
+
+The modular-monolith approach keeps business modules separated while retaining a single deployable backend and straightforward transactional boundaries.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed design.
+
+## Key engineering decisions
+
+### Authentication and authorization
+
+- Passwords are protected with BCrypt hashing.
+- Authentication returns signed JWT access tokens.
+- Backend authorization is role-based; frontend visibility is not treated as a security boundary.
+- Purchase requests derive the requester from the authenticated identity rather than trusting a requester ID supplied by the client.
+
+### Approval concurrency
+
+Managers can decide only pending purchase requests. The decision path uses a database lock so two managers cannot successfully decide the same pending request at the same time. The decision is also recorded as an audit record.
+
+### Purchase-order consistency
+
+An approved request can produce only one purchase order. Purchase-order numbering uses a PostgreSQL sequence with the `PF-<year>-<sequence>` format, avoiding collisions during concurrent creation.
+
+### Inventory traceability
+
+Warehouse receipts update the current stock balance and append an immutable inventory transaction, providing both the operational quantity and its history.
+
+### Database migrations
+
+Flyway owns schema changes, while Hibernate validates the schema instead of silently changing it at application startup.
+
+## Technology stack
+
+| Layer | Technology |
+|---|---|
+| Backend | Java 17, Spring Boot 3.5 |
+| REST API | Spring MVC, Bean Validation |
+| Security | Spring Security, JWT, BCrypt |
+| Persistence | Spring Data JPA, PostgreSQL |
+| Database migration | Flyway |
+| API documentation | Springdoc OpenAPI / Swagger UI |
+| Frontend | React 19, Vite 7 |
+| Infrastructure | Docker, Docker Compose |
+| CI | GitHub Actions |
+
+## Project structure
+
+```text
+procureflow/
+├── .github/workflows/       # Continuous integration
+├── frontend/                # React + Vite web application
+├── src/                     # Spring Boot backend
+├── ARCHITECTURE.md          # Architecture and design decisions
+├── DEMO.md                  # Five-minute product walkthrough
+├── DEPLOYMENT.md            # Deployment and production checklist
+├── INTERVIEW.md             # Interview discussion guide
+├── Dockerfile               # Backend container image
+├── docker-compose.yml       # Local PostgreSQL infrastructure
+└── pom.xml                  # Maven build and dependencies
+```
 
 ## Run locally
 
-Prerequisites: Java 17+, Maven 3.9+, and Docker Desktop.
+### Prerequisites
+
+- Java 17+
+- Maven 3.9+
+- Node.js and npm
+- Docker Desktop
+
+### Start PostgreSQL
 
 ```bash
 docker compose up -d
+```
+
+### Start the backend
+
+```bash
 mvn spring-boot:run
 ```
 
-Then open `http://localhost:8080/actuator/health`.
+API health check: `http://localhost:8080/actuator/health`
 
-The project targets Java 17 so it runs on the installed Eclipse Temurin JDK. Restart IntelliJ's terminal after installing Maven or Docker so the updated PATH is detected.
+### Start the frontend
 
-## Run the frontend
-
-Keep the API running in one terminal. In another terminal:
+In another terminal:
 
 ```bash
 cd frontend
@@ -42,49 +133,61 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. The React application proxies `/api` calls to the Spring Boot API and has screens for authentication, purchase requests, and procurement tasks.
+Open `http://localhost:5173`.
 
-The current interface uses a professional application shell with role-specific workspaces for employees, managers, procurement, warehouse, and administration. See [frontend/README.md](frontend/README.md) for its screens and structure.
+The Vite development server proxies `/api` requests to the Spring Boot API. See [frontend/README.md](frontend/README.md) for the frontend structure and role workspaces.
 
 ## API documentation
 
-With the API running, open `http://localhost:8080/swagger-ui/index.html` to explore and test the REST API. Use the **Authorize** button to paste a JWT returned by login.
+With the backend running, open `http://localhost:8080/swagger-ui/index.html` to inspect and test the REST API. Authenticate through the login endpoint and use **Authorize** with the returned JWT.
 
-## First API workflow
+## Example API flow
 
-`POST /api/v1/auth/register` creates an employee account and returns an access token. `POST /api/v1/auth/login` verifies a BCrypt password hash and returns a signed JWT. The purchase-request endpoints derive the requester from `Authorization: Bearer <token>`—they never trust a requester ID supplied in the request body.
+```http
+POST /api/v1/auth/register
+POST /api/v1/auth/login
+POST /api/v1/purchase-requests
+GET  /api/v1/purchase-requests/mine
+```
 
-`POST /api/v1/purchase-requests` creates a request in `PENDING_APPROVAL` status. `GET /api/v1/purchase-requests/mine` lists the signed-in employee's requests.
+The complete product flow is documented in [DEMO.md](DEMO.md).
 
-## Planned modules
+## Testing and CI
 
-1. Identity and role-based access
-2. Purchase requests and approval workflow
-3. Purchase orders and suppliers
-4. Inventory and stock movement ledger
-5. Audit history and notifications
-6. React operations dashboard
+Backend tests:
 
-## Interview explanation
+```bash
+mvn --batch-mode test
+```
 
-“I chose a modular monolith for the initial product so transactions and delivery stay simple. I isolated business modules and introduced database migrations from day one. I would use asynchronous events only for independent work such as stock alerts and notifications, where the eventual-consistency trade-off is appropriate.”
+Frontend production build:
 
-## Approval workflow
+```bash
+cd frontend
+npm ci
+npm run build
+```
 
-Only a user with the `MANAGER` role can call `POST /api/v1/purchase-requests/{id}/decision`. The service uses a database lock while it changes a pending request to `APPROVED` or `REJECTED`, and stores an immutable decision record. The lock prevents two managers from deciding the same request at the same time.
+GitHub Actions verifies the backend tests and frontend build on pushes to `main` and pull requests.
 
-## Purchase orders
+## Docker and deployment
 
-Only `PROCUREMENT` users can create suppliers and create purchase orders. A purchase order can be created only once for an approved request. Its number uses a PostgreSQL sequence (`PF-<year>-<sequence>`), avoiding collisions when multiple procurement users create orders.
+The repository includes a backend `Dockerfile` and Docker Compose configuration for local PostgreSQL infrastructure.
 
-## Inventory
+For environment variables, secrets, HTTPS, database backups, and production deployment considerations, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
-Procurement owns the product catalogue. `WAREHOUSE` users record received quantities through `POST /api/v1/inventory/receipts`. Every receipt updates the stock balance and appends an immutable inventory transaction, which is the basis for auditable stock history.
+## Documentation
 
-Read [ARCHITECTURE.md](ARCHITECTURE.md) for the module and workflow design, and [INTERVIEW.md](INTERVIEW.md) for a concise explanation you can practice.
+- [Architecture](ARCHITECTURE.md) — modules, data flow, and design decisions
+- [Demo](DEMO.md) — five-minute product walkthrough
+- [Deployment](DEPLOYMENT.md) — deployment and production checklist
+- [Interview guide](INTERVIEW.md) — engineering decisions to discuss in interviews
+- [Frontend guide](frontend/README.md) — React application structure and role workspaces
+- [Contributing](CONTRIBUTING.md) — development and pull-request workflow
+- [Security policy](SECURITY.md) — vulnerability reporting and security principles
 
-Use [DEMO.md](DEMO.md) for a five-minute live interview walkthrough.
+## Portfolio note
 
-## Quality and delivery
+ProcureFlow is a portfolio project built to demonstrate full-stack Java engineering, secure REST APIs, relational data modelling, workflow design, concurrency control, database migrations, automated verification, and containerized development.
 
-`mvn test` runs backend business-rule tests. `npm run build` creates a production frontend build. GitHub Actions verifies both on each push. See [DEPLOYMENT.md](DEPLOYMENT.md) for deployment configuration and production safety notes.
+It should be security-reviewed and adapted before being used with real organizational or personal data.
