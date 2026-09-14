@@ -1,0 +1,18 @@
+.nav { display: flex; gap: 8px; margin-bottom: 20px; }
+.nav button.active { background: #087b63; }
+.approval-page { display: grid; gap: 18px; }
+.page-heading, .approval-top, .approval-meta, .decision-actions { align-items: center; display: flex; justify-content: space-between; }
+.page-heading h2, .approval-top h3 { margin: 4px 0; }
+.page-heading p, .approval-top p { color: #62716b; margin-bottom: 0; }
+.approval-list { display: grid; gap: 14px; }
+.approval-list .card { display: grid; gap: 15px; }
+.approval-meta { color: #62716b; font-size: .85rem; }
+.decision-actions { justify-content: flex-end; gap: 10px; }
+button.danger { background: #b3261e; }
+.user-table { display: grid; gap: 0; }
+.user-table article { align-items: center; border-bottom: 1px solid #e5ebe7; display: flex; justify-content: space-between; padding: 12px 0; }
+.user-table article span { color: #66756f; display: block; font-size: .8rem; }
+.user-table select { width: 150px; }
+@media (max-width: 760px) {
+  .approval-top, .approval-meta, .page-heading { align-items: start; flex-direction: column; gap: 10px; }
+}

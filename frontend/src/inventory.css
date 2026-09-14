@@ -1,0 +1,7 @@
+.inventory { display: grid; gap: 14px; }
+.inventory-list { display: grid; }
+.inventory-list article { align-items: center; border-top: 1px solid #e5ebe7; display: flex; justify-content: space-between; padding: 10px 0; }
+.inventory-list article span { color: #66756f; display: block; font-size: .78rem; }
+.inventory-list article > div:last-child { text-align: right; }
+.compact-form { display: grid; gap: 8px; margin-top: 4px; }
+.compact-form h3 { font-size: .9rem; margin: 6px 0 0; }
