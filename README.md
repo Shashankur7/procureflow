@@ -1,74 +1,99 @@
 # ProcureFlow
 
-A role-based procurement and inventory workflow platform built with Java and React.
+**Role-based procurement and inventory workflow platform built with Java, Spring Boot, PostgreSQL, and React.**
 
-ProcureFlow models a complete internal purchasing flow: an employee submits a purchase request, a manager approves or rejects it, procurement creates a purchase order, and warehouse staff receive stock into inventory.
-
-## Overview
-
-ProcureFlow is implemented as a modular monolith with a React + Vite frontend, Spring Boot REST API, PostgreSQL database, Flyway migrations, JWT authentication, role-based authorization, Docker-based local infrastructure, OpenAPI documentation, automated tests, and GitHub Actions CI.
-
-The project is designed to demonstrate practical backend engineering and full-stack development skills rather than a collection of isolated CRUD screens.
-
-## Core workflow
+ProcureFlow models an internal purchasing workflow from request to inventory receipt:
 
 ```text
-Employee -> Purchase Request -> Manager Approval -> Procurement -> Purchase Order -> Warehouse Receipt -> Inventory
+Employee → Purchase Request → Manager Approval → Purchase Order → Warehouse Receipt → Inventory
 ```
+
+The project is structured as a modular monolith and focuses on practical backend engineering, secure REST APIs, relational data modelling, workflow rules, concurrency control, testing, and full-stack integration.
+
+## Why this project
+
+Procurement workflows are a good example of software that is more than CRUD. A request can require approval, an approved request must not create duplicate purchase orders, and received stock needs both a current balance and an auditable history.
+
+ProcureFlow was built to explore those application-level rules in a single full-stack system.
+
+## Features
+
+- JWT authentication with BCrypt password hashing
+- Backend-enforced role-based authorization
+- Employee purchase-request creation and history
+- Manager approval/rejection workflow with audit records
+- Supplier and product catalogue management
+- Purchase-order creation from approved requests
+- PostgreSQL sequence-based purchase-order numbering
+- Warehouse stock-receipt workflow
+- Inventory balance and transaction history
+- Flyway-managed database migrations
+- Bean Validation and REST APIs
+- Swagger/OpenAPI documentation
+- React role-aware workspaces
+- Docker Compose PostgreSQL development environment
+- Automated backend tests and frontend production build in GitHub Actions
 
 ## Role-based workspaces
 
-| Role | Main responsibilities |
+| Role | Responsibilities |
 |---|---|
 | Employee | Create purchase requests and review request history |
 | Manager | Review pending requests and record approval decisions |
-| Procurement | Manage suppliers, purchase orders, and the product catalogue |
+| Procurement | Manage suppliers, purchase orders, and products |
 | Warehouse | View inventory and record stock receipts |
 | Admin | Manage user roles |
 
-## Technical architecture
+## Architecture
 
 ```text
-React + Vite
-     |
- HTTP / JSON + JWT
-     v
-Spring Boot REST API
- Controllers -> Services -> Repositories
-     |
- JPA / JDBC + Flyway
-     v
-PostgreSQL
+┌──────────────────────────────┐
+│       React + Vite           │
+│   Role-aware web workspace   │
+└──────────────┬───────────────┘
+               │ HTTP / JSON + JWT
+               ▼
+┌──────────────────────────────┐
+│       Spring Boot API        │
+│ Controllers → Services       │
+│             → Repositories   │
+└──────────────┬───────────────┘
+               │ JPA / JDBC
+               ▼
+┌──────────────────────────────┐
+│ PostgreSQL + Flyway          │
+│ Schema + workflow data       │
+└──────────────────────────────┘
 ```
 
-The modular-monolith approach keeps business modules separated while retaining a single deployable backend and straightforward transactional boundaries.
+The modular-monolith approach keeps business modules separated while retaining one deployable backend and straightforward transaction boundaries.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed design.
+See [ARCHITECTURE.md](ARCHITECTURE.md) for the detailed design decisions.
 
-## Key engineering decisions
+## Engineering highlights
 
 ### Authentication and authorization
 
-- Passwords are protected with BCrypt hashing.
-- Authentication returns signed JWT access tokens.
-- Backend authorization is role-based; frontend visibility is not treated as a security boundary.
-- Purchase requests derive the requester from the authenticated identity rather than trusting a requester ID supplied by the client.
+- Passwords are hashed with BCrypt.
+- Login produces signed JWT access tokens.
+- Authorization is enforced on the backend; hiding a screen in React is not treated as a security boundary.
+- Purchase-request ownership is derived from the authenticated identity rather than trusting a requester ID from the client.
 
 ### Approval concurrency
 
-Managers can decide only pending purchase requests. The decision path uses a database lock so two managers cannot successfully decide the same pending request at the same time. The decision is also recorded as an audit record.
+Managers can decide only pending purchase requests. The decision path uses a database lock so concurrent managers cannot both successfully decide the same pending request. The decision is also recorded as an audit entry.
 
 ### Purchase-order consistency
 
-An approved request can produce only one purchase order. Purchase-order numbering uses a PostgreSQL sequence with the `PF-<year>-<sequence>` format, avoiding collisions during concurrent creation.
+An approved request can produce only one purchase order. Purchase-order numbering uses a PostgreSQL sequence with the `PF-<year>-<sequence>` format to avoid collisions during concurrent creation.
 
 ### Inventory traceability
 
-Warehouse receipts update the current stock balance and append an immutable inventory transaction, providing both the operational quantity and its history.
+Warehouse receipts update the current stock balance and append an immutable inventory transaction, providing both operational quantity and history.
 
 ### Database migrations
 
-Flyway owns schema changes, while Hibernate validates the schema instead of silently changing it at application startup.
+Flyway owns schema changes while Hibernate validates the schema instead of silently modifying it at application startup.
 
 ## Technology stack
 
@@ -88,16 +113,16 @@ Flyway owns schema changes, while Hibernate validates the schema instead of sile
 
 ```text
 procureflow/
-├── .github/workflows/       # Continuous integration
-├── frontend/                # React + Vite web application
+├── .github/workflows/       # CI verification
+├── frontend/                # React + Vite application
 ├── src/                     # Spring Boot backend
 ├── ARCHITECTURE.md          # Architecture and design decisions
-├── DEMO.md                  # Five-minute product walkthrough
-├── DEPLOYMENT.md            # Deployment and production checklist
+├── DEMO.md                  # Five-minute walkthrough
+├── DEPLOYMENT.md            # Environment and deployment guidance
 ├── INTERVIEW.md             # Interview discussion guide
 ├── Dockerfile               # Backend container image
 ├── docker-compose.yml       # Local PostgreSQL infrastructure
-└── pom.xml                  # Maven build and dependencies
+└── pom.xml                  # Maven configuration
 ```
 
 ## Run locally
@@ -109,23 +134,23 @@ procureflow/
 - Node.js and npm
 - Docker Desktop
 
-### Start PostgreSQL
+### 1. Start PostgreSQL
 
 ```bash
 docker compose up -d
 ```
 
-### Start the backend
+The Compose file provides development defaults and supports environment-variable overrides for database configuration.
+
+### 2. Start the backend
 
 ```bash
 mvn spring-boot:run
 ```
 
-API health check: `http://localhost:8080/actuator/health`
+Health endpoint: `http://localhost:8080/actuator/health`
 
-### Start the frontend
-
-In another terminal:
+### 3. Start the frontend
 
 ```bash
 cd frontend
@@ -135,13 +160,17 @@ npm run dev
 
 Open `http://localhost:5173`.
 
-The Vite development server proxies `/api` requests to the Spring Boot API. See [frontend/README.md](frontend/README.md) for the frontend structure and role workspaces.
+The Vite development server proxies `/api` requests to the Spring Boot API.
 
 ## API documentation
 
-With the backend running, open `http://localhost:8080/swagger-ui/index.html` to inspect and test the REST API. Authenticate through the login endpoint and use **Authorize** with the returned JWT.
+With the backend running, open:
 
-## Example API flow
+`http://localhost:8080/swagger-ui/index.html`
+
+Use the login endpoint to obtain a JWT and the Swagger **Authorize** control to test protected endpoints.
+
+Example API flow:
 
 ```http
 POST /api/v1/auth/register
@@ -150,17 +179,17 @@ POST /api/v1/purchase-requests
 GET  /api/v1/purchase-requests/mine
 ```
 
-The complete product flow is documented in [DEMO.md](DEMO.md).
+See [DEMO.md](DEMO.md) for the complete workflow.
 
 ## Testing and CI
 
-Backend tests:
+Run backend tests:
 
 ```bash
 mvn --batch-mode test
 ```
 
-Frontend production build:
+Build the frontend:
 
 ```bash
 cd frontend
@@ -168,26 +197,30 @@ npm ci
 npm run build
 ```
 
-GitHub Actions verifies the backend tests and frontend build on pushes to `main` and pull requests.
+GitHub Actions runs the backend test suite and frontend production build for pushes to `main` and pull requests.
 
-## Docker and deployment
+The repository contains focused unit tests for core workflow logic, including purchase-request decisions. Additional integration coverage is a useful next step.
 
-The repository includes a backend `Dockerfile` and Docker Compose configuration for local PostgreSQL infrastructure.
+## Security and configuration
 
-For environment variables, secrets, HTTPS, database backups, and production deployment considerations, see [DEPLOYMENT.md](DEPLOYMENT.md).
+Development credentials are intentionally supplied through local configuration. Production credentials must be injected through environment variables or a secret manager.
+
+See [SECURITY.md](SECURITY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) before deploying the application.
 
 ## Documentation
 
 - [Architecture](ARCHITECTURE.md) — modules, data flow, and design decisions
 - [Demo](DEMO.md) — five-minute product walkthrough
-- [Deployment](DEPLOYMENT.md) — deployment and production checklist
+- [Deployment](DEPLOYMENT.md) — environment and deployment guidance
 - [Interview guide](INTERVIEW.md) — engineering decisions to discuss in interviews
 - [Frontend guide](frontend/README.md) — React application structure and role workspaces
 - [Contributing](CONTRIBUTING.md) — development and pull-request workflow
 - [Security policy](SECURITY.md) — vulnerability reporting and security principles
 
-## Portfolio note
+## Portfolio status
 
-ProcureFlow is a portfolio project built to demonstrate full-stack Java engineering, secure REST APIs, relational data modelling, workflow design, concurrency control, database migrations, automated verification, and containerized development.
+**Portfolio project — actively being refined.**
 
-It should be security-reviewed and adapted before being used with real organizational or personal data.
+ProcureFlow is intended to demonstrate full-stack Java engineering through a realistic business workflow rather than a collection of disconnected CRUD screens.
+
+Before production use, the project should receive a dedicated security, integration-testing, observability, and deployment review.
