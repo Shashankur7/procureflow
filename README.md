@@ -217,7 +217,7 @@ See [SECURITY.md](SECURITY.md) and [DEPLOYMENT.md](DEPLOYMENT.md) before deployi
 - [Contributing](CONTRIBUTING.md) — development and pull-request workflow
 - [Security policy](SECURITY.md) — vulnerability reporting and security principles
 
-## Portfolio status
+## Portfolio status.
 
 **Portfolio project — actively being refined.**
 
